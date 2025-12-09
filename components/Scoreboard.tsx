@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 type Team = {
   shortDisplayName?: string
@@ -74,11 +74,16 @@ export default function Scoreboard() {
     setSelectedDate(today)
     loadDateAndPrevious(today)
   }, [])
+  const daysbarRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = typeof document !== "undefined" ? document.querySelector(".daypill-active") as HTMLElement | null : null
+    el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+  }, [selectedDate])
   return (
     <div className="card">
       <div className="title">Scores</div>
       <div className="selector" style={{ marginBottom: 12, flexWrap: "wrap" as any }}>
-        <div className="daysbar">
+        <div className="daysbar" ref={daysbarRef}>
           {(() => {
             if (!selectedDate) return null
             const y = Number(selectedDate.slice(0, 4))
@@ -95,23 +100,26 @@ export default function Scoreboard() {
               const isSel = ymd === selectedDate
               return (
                 <button key={i} onClick={() => { setSelectedDate(ymd); loadDateAndPrevious(ymd) }} className={"daypill" + (isSel ? " daypill-active" : "")}>
-                  {label(dt)}
+                  <div className="muted">{dt.toLocaleDateString(undefined, { weekday: "short" })}</div>
+                  <div>{dt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>
                 </button>
               )
             })
           })()}
         </div>
-        <span className="calendaricon">📅</span>
-        <input type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
-          onChange={e => {
-            const val = e.currentTarget.value
-            if (val) {
-              const ymd = parseInputYmd(val)
-              setSelectedDate(ymd)
-              loadDateAndPrevious(ymd)
-            }
-          }}
-        />
+        <div className="selector-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="calendaricon">📅</span>
+          <input type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
+            onChange={e => {
+              const val = e.currentTarget.value
+              if (val) {
+                const ymd = parseInputYmd(val)
+                setSelectedDate(ymd)
+                loadDateAndPrevious(ymd)
+              }
+            }}
+          />
+        </div>
       </div>
       {loading && <div className="badge">Loading</div>}
       {!loading && groups.every(g => g.events.length === 0) && <div className="badge">No games</div>}
@@ -205,22 +213,23 @@ export default function Scoreboard() {
                         })}
                       </div>
                     </div>
-                    <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {(() => {
-                        const need = ["Gamecast", "Box Score", "Highlights"]
+                        const id = (ev as any)?.id || ""
                         const found = (ev.links || [])
-                          .map(l => ({
-                            text: l.shortText || l.text || "",
-                            href: l.href || "#",
-                            rel: (l.rel || []).join(",")
-                          }))
+                          .map(l => ({ text: l.shortText || l.text || "", href: l.href || "#", rel: (l.rel || []).join(",") }))
                           .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
-                        const pick = (name: string) => found.find(x => new RegExp(name, "i").test(x.text))
-                        return need.map((n, idx) => {
-                          const x = pick(n)
-                          if (!x) return null
-                          return <a key={idx} className="link" href={x.href} target="_blank" rel="noreferrer">{n}</a>
-                        })
+                        const byText = (t: string) => found.find(x => new RegExp(t, "i").test(x.text))
+                        const gamecast = byText("Gamecast")?.href || (id ? `https://www.espn.com/nba/game?gameId=${id}` : "#")
+                        const boxscore = byText("Box Score")?.href || (id ? `https://www.espn.com/nba/boxscore/_/gameId/${id}` : "#")
+                        const highlights = byText("Highlights")?.href || (id ? `https://www.espn.com/nba/recap/_/gameId/${id}` : "#")
+                        return (
+                          <>
+                            <a className="btnpill" href={gamecast} target="_blank" rel="noreferrer">Gamecast</a>
+                            <a className="btnpill" href={boxscore} target="_blank" rel="noreferrer">Box Score</a>
+                            <a className="btnpill" href={highlights} target="_blank" rel="noreferrer">Highlights</a>
+                          </>
+                        )
                       })()}
                     </div>
                   </div>
