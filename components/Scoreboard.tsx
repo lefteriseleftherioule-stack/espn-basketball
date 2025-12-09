@@ -109,8 +109,6 @@ export default function Scoreboard() {
           })()}
         </div>
         <div className="selector-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button className="calendarbtn" onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}>📅</button>
-          <span className="badge">{label(new Date(Number((selectedDate || toYmd(new Date())).slice(0,4)), Number((selectedDate || toYmd(new Date())).slice(4,6)) - 1, Number((selectedDate || toYmd(new Date())).slice(6,8))))}</span>
           <input ref={dateInputRef} type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
             onChange={e => {
               const val = e.currentTarget.value
@@ -121,6 +119,7 @@ export default function Scoreboard() {
               }
             }}
           />
+          <button className="calendarbtn" onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}>📅</button>
         </div>
       </div>
       {loading && <div className="badge">Loading</div>}
