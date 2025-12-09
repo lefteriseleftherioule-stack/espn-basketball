@@ -31,8 +31,11 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .daypill { background: #111827; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-width: 140px; cursor: pointer; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; }
 .daypill-active { background: var(--border); }
 .selector { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.selector-right { margin-left: auto; display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
 select { background: #ffffff; color: #111827; border-radius: 6px; padding: 6px; }
 input[type="date"] { background: #1f2937; color: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.selector-right input[type="date"]::-webkit-calendar-picker-indicator { display: none; opacity: 0; }
+.selector-right input[type="date"] { -webkit-appearance: none; appearance: none; }
 .calendaricon { font-size: 20px; }
 .calendarbtn { display:inline-flex; align-items:center; justify-content:center; font-size:18px; width:36px; height:36px; border-radius:999px; background:#111827; border:1px solid var(--border); color:#fff; cursor:pointer; transition:transform 120ms ease, box-shadow 120ms ease, background 120ms ease; }
 .calendarbtn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.35); background:#1b2431; }
