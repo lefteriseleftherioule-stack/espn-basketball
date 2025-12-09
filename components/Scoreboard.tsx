@@ -108,7 +108,7 @@ export default function Scoreboard() {
             })
           })()}
         </div>
-        <div className="selector-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="selector-right" style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
           <input ref={dateInputRef} type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
             onChange={e => {
               const val = e.currentTarget.value
