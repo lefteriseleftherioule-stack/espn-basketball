@@ -15,10 +15,16 @@ export async function GET(req: Request) {
       ? `${base}/teams/${team}/news${limit ? `?limit=${limit}` : ""}`
       : `${base}/news${limit ? `?limit=${limit}` : ""}`
     const res = await fetch(fullUrl, { next: { revalidate } })
-    if (!res.ok) return NextResponse.json({ error: "upstream" }, { status: 502 })
+    if (!res.ok) return NextResponse.json({ error: "upstream" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
     const data = await res.json()
-    return NextResponse.json(data)
+    const arr = (data?.articles || data?.items || data?.feed || []) as any[]
+    const out = { articles: Array.isArray(arr) ? arr : [] }
+    return NextResponse.json(out, { headers: { "Access-Control-Allow-Origin": "*" } })
   } catch (e) {
-    return NextResponse.json({ error: "failed" }, { status: 502 })
+    return NextResponse.json({ error: "failed" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
   }
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } })
 }
