@@ -119,7 +119,10 @@ export default function Scoreboard() {
               }
             }}
           />
-          <button className="calendarbtn" onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}>📅</button>
+          <button type="button" className="calendarbtn"
+            onMouseDown={e => { e.preventDefault(); const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}
+            onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}
+          >📅</button>
         </div>
       </div>
       {loading && <div className="badge">Loading</div>}
