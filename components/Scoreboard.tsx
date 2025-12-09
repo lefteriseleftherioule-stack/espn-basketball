@@ -38,11 +38,10 @@ export default function Scoreboard() {
     return `${y}${m}${day}`
   }
   const label = (d: Date) => (
-    d.toLocaleDateString(undefined, { weekday: "short" }) +
-    " " +
-    d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    d.toLocaleDateString(undefined, { weekday: "short" }) + " " + d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
   )
   const parseInputYmd = (v: string) => v.replace(/-/g, "")
+  const dashed = (ymd: string) => `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`
 
   const loadDateAndPrevious = async (ymd: string) => {
     setLoading(true)
@@ -78,8 +77,8 @@ export default function Scoreboard() {
   return (
     <div className="card">
       <div className="title">Scores</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+      <div className="selector" style={{ marginBottom: 12, flexWrap: "wrap" as any }}>
+        <div className="daysbar">
           {(() => {
             if (!selectedDate) return null
             const y = Number(selectedDate.slice(0, 4))
@@ -95,20 +94,15 @@ export default function Scoreboard() {
               const ymd = toYmd(dt)
               const isSel = ymd === selectedDate
               return (
-                <button
-                  key={i}
-                  onClick={() => { setSelectedDate(ymd); loadDateAndPrevious(ymd) }}
-                  className="badge"
-                  style={{ cursor: "pointer", background: isSel ? "#374151" : "#1f2937" }}
-                >
+                <button key={i} onClick={() => { setSelectedDate(ymd); loadDateAndPrevious(ymd) }} className={"daypill" + (isSel ? " daypill-active" : "")}>
                   {label(dt)}
                 </button>
               )
             })
           })()}
         </div>
-        <input
-          type="date"
+        <span className="calendaricon">📅</span>
+        <input type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
           onChange={e => {
             const val = e.currentTarget.value
             if (val) {
