@@ -90,8 +90,10 @@ export default function Scoreboard() {
       const inside = tgt && (tgt.closest?.(".calpop") || tgt.closest?.(".selector-right"))
       if (!inside) setCalendarOpen(false)
     }
-    if (calendarOpen) document.addEventListener("mousedown", onDocClick)
-    return () => document.removeEventListener("mousedown", onDocClick)
+    if (calendarOpen) {
+      setTimeout(() => document.addEventListener("click", onDocClick), 0)
+    }
+    return () => document.removeEventListener("click", onDocClick)
   }, [calendarOpen])
   return (
     <div className="card">
@@ -133,10 +135,7 @@ export default function Scoreboard() {
               }
             }}
           />
-          <button type="button" className="calendarbtn"
-            onMouseDown={e => { e.preventDefault(); const el = dateInputRef.current; if (!el) return; const r = (el as any).showPicker?.(); if (r === undefined) setCalendarOpen(true); else setCalendarOpen(true) }}
-            onClick={() => { const el = dateInputRef.current; if (!el) return; const r = (el as any).showPicker?.(); if (r === undefined) setCalendarOpen(true); else setCalendarOpen(true) }}
-          >📅</button>
+          <button type="button" className="calendarbtn" onClick={() => setCalendarOpen(true)}>📅</button>
           {calendarOpen && (
             <div className="calpop">
               <div className="calheader">
