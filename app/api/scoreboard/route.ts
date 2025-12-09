@@ -11,9 +11,9 @@ export async function GET(req: Request) {
     const team = searchParams.get("team") || ""
     const fullUrl = date ? `${base}?dates=${date}` : base
     const res = await fetch(fullUrl, { next: { revalidate } })
-    if (!res.ok) return NextResponse.json({ error: "upstream" }, { status: 502 })
+    if (!res.ok) return NextResponse.json({ error: "upstream" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
     const data = await res.json()
-    if (!team) return NextResponse.json(data)
+    if (!team) return NextResponse.json(data, { headers: { "Access-Control-Allow-Origin": "*" } })
     const id = String(team)
     const events = Array.isArray(data?.events) ? data.events : []
     const filtered = events.filter((ev: any) => {
@@ -21,8 +21,12 @@ export async function GET(req: Request) {
       return comps.some((c: any) => String(c?.team?.id) === id)
     })
     const out = { ...data, events: filtered }
-    return NextResponse.json(out)
+    return NextResponse.json(out, { headers: { "Access-Control-Allow-Origin": "*" } })
   } catch (e) {
-    return NextResponse.json({ error: "failed" }, { status: 502 })
+    return NextResponse.json({ error: "failed" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
   }
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } })
 }
