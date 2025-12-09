@@ -30,6 +30,8 @@ export default function Scoreboard() {
   const [groups, setGroups] = useState<{ date: string; events: Event[] }[]>([])
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [loading, setLoading] = useState(true)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
 
   const toYmd = (d: Date) => {
     const y = d.getFullYear()
@@ -42,6 +44,7 @@ export default function Scoreboard() {
   )
   const parseInputYmd = (v: string) => v.replace(/-/g, "")
   const dashed = (ymd: string) => `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`
+  const fromYmd = (ymd: string) => new Date(Number(ymd.slice(0,4)), Number(ymd.slice(4,6)) - 1, Number(ymd.slice(6,8)))
 
   const loadDateAndPrevious = async (ymd: string) => {
     setLoading(true)
@@ -73,6 +76,7 @@ export default function Scoreboard() {
     const today = toYmd(new Date())
     setSelectedDate(today)
     loadDateAndPrevious(today)
+    setCalendarMonth(new Date())
   }, [])
   const daysbarRef = useRef<HTMLDivElement | null>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -80,6 +84,15 @@ export default function Scoreboard() {
     const el = typeof document !== "undefined" ? document.querySelector(".daypill-active") as HTMLElement | null : null
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
   }, [selectedDate])
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const tgt = e.target as HTMLElement
+      const inside = tgt && (tgt.closest?.(".calpop") || tgt.closest?.(".selector-right"))
+      if (!inside) setCalendarOpen(false)
+    }
+    if (calendarOpen) document.addEventListener("mousedown", onDocClick)
+    return () => document.removeEventListener("mousedown", onDocClick)
+  }, [calendarOpen])
   return (
     <div className="card">
       <div className="title">Scores</div>
@@ -116,13 +129,53 @@ export default function Scoreboard() {
                 const ymd = parseInputYmd(val)
                 setSelectedDate(ymd)
                 loadDateAndPrevious(ymd)
+                setCalendarMonth(fromYmd(ymd))
               }
             }}
           />
           <button type="button" className="calendarbtn"
-            onMouseDown={e => { e.preventDefault(); const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}
-            onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}
+            onMouseDown={e => { e.preventDefault(); const el = dateInputRef.current; if (!el) return; const r = (el as any).showPicker?.(); if (r === undefined) setCalendarOpen(true); else setCalendarOpen(true) }}
+            onClick={() => { const el = dateInputRef.current; if (!el) return; const r = (el as any).showPicker?.(); if (r === undefined) setCalendarOpen(true); else setCalendarOpen(true) }}
           >📅</button>
+          {calendarOpen && (
+            <div className="calpop">
+              <div className="calheader">
+                <button className="calnav" onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() - 1); setCalendarMonth(d) }}>‹</button>
+                <span className="badge">{calendarMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span>
+                <button className="calnav" onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() + 1); setCalendarMonth(d) }}>›</button>
+              </div>
+              <div className="calgrid">
+                {(() => {
+                  const y = calendarMonth.getFullYear()
+                  const m = calendarMonth.getMonth()
+                  const start = new Date(y, m, 1)
+                  const startIdx = start.getDay()
+                  const daysInMonth = new Date(y, m + 1, 0).getDate()
+                  const prevDays = new Date(y, m, 0).getDate()
+                  const cells = [] as { d: Date; inMonth: boolean }[]
+                  for (let i = 0; i < 42; i++) {
+                    let dateNum: number
+                    let inMonth = true
+                    if (i < startIdx) { dateNum = prevDays - (startIdx - 1 - i); inMonth = false }
+                    else if (i - startIdx + 1 <= daysInMonth) { dateNum = i - startIdx + 1; inMonth = true }
+                    else { dateNum = i - startIdx + 1 - daysInMonth; inMonth = false }
+                    const d = new Date(y, inMonth ? m : (i < startIdx ? m - 1 : m + 1), dateNum)
+                    cells.push({ d, inMonth })
+                  }
+                  const sel = fromYmd(selectedDate || toYmd(new Date()))
+                  return cells.map((c, idx) => {
+                    const isSel = c.d.getFullYear() === sel.getFullYear() && c.d.getMonth() === sel.getMonth() && c.d.getDate() === sel.getDate()
+                    const cls = "calcell" + (isSel ? " calcell-selected" : "") + (c.inMonth ? "" : " calcell-muted")
+                    return (
+                      <div key={idx} className={cls} onClick={() => { const ymd = toYmd(c.d); setSelectedDate(ymd); loadDateAndPrevious(ymd); setCalendarMonth(new Date(c.d)); setCalendarOpen(false) }}>
+                        {c.d.getDate()}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {loading && <div className="badge">Loading</div>}
