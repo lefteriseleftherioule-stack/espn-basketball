@@ -141,96 +141,101 @@ export default function Scoreboard() {
                 )
                 const cols = Array.from({ length: Math.max(4, maxPeriods) }, (_, k) => k)
                 return (
-                  <div key={i} style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div key={i} className="gamecard">
+                    <div className="gameheader">
                       <span className="badge">{ev.status?.type?.detail || ev.status?.type?.name || ""}</span>
                     </div>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr>
-                            <th style={{ textAlign: "left", fontWeight: 600 }}></th>
-                            {cols.map((c) => (
-                              <th key={c} style={{ textAlign: "right", fontWeight: 600 }}>{c + 1}</th>
-                            ))}
-                            <th style={{ textAlign: "right", fontWeight: 600 }}>T</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {teams.map((t, idx) => {
-                            const name = t.team?.displayName || t.team?.shortDisplayName || t.team?.abbreviation || ""
-                            const overall = (t.records || []).find(r => (r.type || "").toLowerCase().includes("overall") || (r.type || "").toLowerCase().includes("total"))?.summary || (t.records || [])[0]?.summary || ""
-                            const ha = t.homeAway ? (t.homeAway.charAt(0).toUpperCase() + t.homeAway.slice(1)) : ""
-                            const line = (t.linescores || []).map(ls => ls.displayValue || "")
-                            const q = cols.map(i => line[i] || "")
-                            const logo = (t.team as any)?.logo || (t.team as any)?.logos?.[0]?.href || ""
-                            return (
-                              <tr key={idx}>
-                              <td>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  {logo && <img src={logo} alt={t.team?.abbreviation || name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", background: "#fff" }} />}
-                                  <span className={t.winner ? "win" : "loss"}>{name}</span>
-                                  <span className="badge">{overall ? `(${overall} ${ha})` : ha ? `(${ha})` : ""}</span>
-                                </div>
-                              </td>
-                              {q.map((val, qi) => (
-                                <td key={qi} style={{ textAlign: "right" }}>{val}</td>
-                              ))}
-                              <td style={{ textAlign: "right" }} className="score">{t.score}</td>
+                    <div className="gamegrid">
+                      <div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: "left", fontWeight: 600 }}></th>
+                                {cols.map((c) => (
+                                  <th key={c} style={{ textAlign: "right", fontWeight: 600 }}>{c + 1}</th>
+                                ))}
+                                <th style={{ textAlign: "right", fontWeight: 600 }}>T</th>
                               </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    {(venueName || city || state) && (
-                      <div style={{ marginTop: 8 }}>
-                        <div className="badge">{venueName}</div>
-                        <div className="badge" style={{ marginLeft: 8 }}>{[city, state].filter(Boolean).join(", ")}</div>
+                            </thead>
+                            <tbody>
+                              {teams.map((t, idx) => {
+                                const name = t.team?.displayName || t.team?.shortDisplayName || t.team?.abbreviation || ""
+                                const overall = (t.records || []).find(r => (r.type || "").toLowerCase().includes("overall") || (r.type || "").toLowerCase().includes("total"))?.summary || (t.records || [])[0]?.summary || ""
+                                const ha = t.homeAway ? (t.homeAway.charAt(0).toUpperCase() + t.homeAway.slice(1)) : ""
+                                const line = (t.linescores || []).map(ls => ls.displayValue || "")
+                                const q = cols.map(i => line[i] || "")
+                                const logo = (t.team as any)?.logo || (t.team as any)?.logos?.[0]?.href || ""
+                                return (
+                                  <tr key={idx}>
+                                  <td>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      {logo && <img src={logo} alt={t.team?.abbreviation || name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", background: "#fff" }} />}
+                                      <span className={t.winner ? "win" : "loss"}>{name}</span>
+                                      <span className="badge">{overall ? `(${overall} ${ha})` : ha ? `(${ha})` : ""}</span>
+                                    </div>
+                                  </td>
+                                  {q.map((val, qi) => (
+                                    <td key={qi} style={{ textAlign: "right" }}>{val}</td>
+                                  ))}
+                                  <td style={{ textAlign: "right" }} className="score">{t.score}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {(venueName || city || state) && (
+                          <div style={{ marginTop: 8 }}>
+                            <div className="badge">{venueName}</div>
+                            <div className="badge" style={{ marginLeft: 8 }}>{[city, state].filter(Boolean).join(", ")}</div>
+                          </div>
+                        )}
+                        <div style={{ marginTop: 8 }}>
+                          <div className="title" style={{ fontSize: 16 }}>Top Performers</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            {teams.map((t, idx) => {
+                              const leaders = t.leaders || []
+                              const pick = (preds: RegExp[]) => leaders.find(l => preds.some(rx => rx.test(l.shortDisplayName || "")))?.leaders?.[0]
+                              const lp = pick([/PTS/i, /Points/i])
+                              const lr = pick([/REB/i, /Rebounds/i])
+                              const la = pick([/AST/i, /Assists/i])
+                              const athlete = lp?.athlete || lr?.athlete || la?.athlete || {}
+                              const name = athlete.shortName || athlete.displayName || ""
+                              const jersey = athlete.jersey ? `#${athlete.jersey}` : ""
+                              const abbr = t.team?.abbreviation ? ` - ${t.team?.abbreviation}` : ""
+                              const stats = [lp?.value ? `${lp.value}PTS` : null, lr?.value ? `${lr.value}REB` : null, la?.value ? `${la.value}AST` : null].filter(Boolean).join("")
+                              return (
+                                <div key={idx}>
+                                  <div style={{ fontWeight: 600 }}>{name}</div>
+                                  <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
+                                  <div style={{ marginTop: 4 }}>{stats}</div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <div style={{ marginTop: 8 }}>
-                      <div className="title" style={{ fontSize: 16 }}>Top Performers</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                        {teams.map((t, idx) => {
-                          const leaders = t.leaders || []
-                          const pick = (preds: RegExp[]) => leaders.find(l => preds.some(rx => rx.test(l.shortDisplayName || "")))?.leaders?.[0]
-                          const lp = pick([/PTS/i, /Points/i])
-                          const lr = pick([/REB/i, /Rebounds/i])
-                          const la = pick([/AST/i, /Assists/i])
-                          const athlete = lp?.athlete || lr?.athlete || la?.athlete || {}
-                          const name = athlete.shortName || athlete.displayName || ""
-                          const jersey = athlete.jersey ? `#${athlete.jersey}` : ""
-                          const abbr = t.team?.abbreviation ? ` - ${t.team?.abbreviation}` : ""
-                          const stats = [lp?.value ? `${lp.value}PTS` : null, lr?.value ? `${lr.value}REB` : null, la?.value ? `${la.value}AST` : null].filter(Boolean).join("")
+                      <div className="vdivider" />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+                        {(() => {
+                          const id = (ev as any)?.id || ""
+                          const found = (ev.links || [])
+                            .map(l => ({ text: l.shortText || l.text || "", href: l.href || "#", rel: (l.rel || []).join(",") }))
+                            .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
+                          const byText = (t: string) => found.find(x => new RegExp(t, "i").test(x.text))
+                          const gamecast = byText("Gamecast")?.href || (id ? `https://www.espn.com/nba/game?gameId=${id}` : "#")
+                          const boxscore = byText("Box Score")?.href || (id ? `https://www.espn.com/nba/boxscore/_/gameId/${id}` : "#")
+                          const highlights = byText("Highlights")?.href || (id ? `https://www.espn.com/nba/recap/_/gameId/${id}` : "#")
                           return (
-                            <div key={idx}>
-                              <div style={{ fontWeight: 600 }}>{name}</div>
-                              <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
-                              <div style={{ marginTop: 4 }}>{stats}</div>
-                            </div>
+                            <>
+                              <a className="btnpill" href={gamecast} target="_blank" rel="noreferrer">Gamecast</a>
+                              <a className="btnpill" href={boxscore} target="_blank" rel="noreferrer">Box Score</a>
+                              <a className="btnpill" href={highlights} target="_blank" rel="noreferrer">Highlights</a>
+                            </>
                           )
-                        })}
+                        })()}
                       </div>
-                    </div>
-                    <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {(() => {
-                        const id = (ev as any)?.id || ""
-                        const found = (ev.links || [])
-                          .map(l => ({ text: l.shortText || l.text || "", href: l.href || "#", rel: (l.rel || []).join(",") }))
-                          .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
-                        const byText = (t: string) => found.find(x => new RegExp(t, "i").test(x.text))
-                        const gamecast = byText("Gamecast")?.href || (id ? `https://www.espn.com/nba/game?gameId=${id}` : "#")
-                        const boxscore = byText("Box Score")?.href || (id ? `https://www.espn.com/nba/boxscore/_/gameId/${id}` : "#")
-                        const highlights = byText("Highlights")?.href || (id ? `https://www.espn.com/nba/recap/_/gameId/${id}` : "#")
-                        return (
-                          <>
-                            <a className="btnpill" href={gamecast} target="_blank" rel="noreferrer">Gamecast</a>
-                            <a className="btnpill" href={boxscore} target="_blank" rel="noreferrer">Box Score</a>
-                            <a className="btnpill" href={highlights} target="_blank" rel="noreferrer">Highlights</a>
-                          </>
-                        )
-                      })()}
                     </div>
                   </div>
                 )
