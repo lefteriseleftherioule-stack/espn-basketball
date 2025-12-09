@@ -16,7 +16,7 @@ type CompetitionTeam = {
   homeAway?: string
   records?: { summary?: string; type?: string }[]
   linescores?: { displayValue?: string }[]
-  leaders?: { leaders?: { athlete?: { displayName?: string; shortName?: string; jersey?: string }; value?: number; displayValue?: string }[]; shortDisplayName?: string }[]
+  leaders?: { leaders?: { athlete?: { displayName?: string; shortName?: string; jersey?: string; headshot?: { href?: string }; images?: { href?: string }[] }; value?: number; displayValue?: string }[]; shortDisplayName?: string }[]
 }
 
 type Event = {
@@ -75,6 +75,7 @@ export default function Scoreboard() {
     loadDateAndPrevious(today)
   }, [])
   const daysbarRef = useRef<HTMLDivElement | null>(null)
+  const dateInputRef = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
     const el = typeof document !== "undefined" ? document.querySelector(".daypill-active") as HTMLElement | null : null
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
@@ -108,8 +109,9 @@ export default function Scoreboard() {
           })()}
         </div>
         <div className="selector-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="calendaricon">📅</span>
-          <input type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
+          <button className="calendarbtn" onClick={() => { const el = dateInputRef.current; if (!el) return; try { (el as any).showPicker?.(); } catch {} el.focus(); el.click(); }}>📅</button>
+          <span className="badge">{label(new Date(Number((selectedDate || toYmd(new Date())).slice(0,4)), Number((selectedDate || toYmd(new Date())).slice(4,6)) - 1, Number((selectedDate || toYmd(new Date())).slice(6,8))))}</span>
+          <input ref={dateInputRef} type="date" value={selectedDate ? dashed(selectedDate) : dashed(toYmd(new Date()))}
             onChange={e => {
               const val = e.currentTarget.value
               if (val) {
@@ -145,8 +147,7 @@ export default function Scoreboard() {
                     <div className="gameheader">
                       <span className="badge">{ev.status?.type?.detail || ev.status?.type?.name || ""}</span>
                     </div>
-                    <div className="gamegrid">
-                      <div>
+                    <div>
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
@@ -185,15 +186,17 @@ export default function Scoreboard() {
                             </tbody>
                           </table>
                         </div>
+                        <div className="hdivider" />
                         {(venueName || city || state) && (
                           <div style={{ marginTop: 8 }}>
                             <div className="badge">{venueName}</div>
                             <div className="badge" style={{ marginLeft: 8 }}>{[city, state].filter(Boolean).join(", ")}</div>
                           </div>
                         )}
+                        <div className="hdivider" />
                         <div style={{ marginTop: 8 }}>
                           <div className="title" style={{ fontSize: 16 }}>Top Performers</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div className="btnstack">
                             {teams.map((t, idx) => {
                               const leaders = t.leaders || []
                               const pick = (preds: RegExp[]) => leaders.find(l => preds.some(rx => rx.test(l.shortDisplayName || "")))?.leaders?.[0]
@@ -205,37 +208,40 @@ export default function Scoreboard() {
                               const jersey = athlete.jersey ? `#${athlete.jersey}` : ""
                               const abbr = t.team?.abbreviation ? ` - ${t.team?.abbreviation}` : ""
                               const stats = [lp?.value ? `${lp.value}PTS` : null, lr?.value ? `${lr.value}REB` : null, la?.value ? `${la.value}AST` : null].filter(Boolean).join("")
+                              const avatar = (athlete as any)?.headshot?.href || (athlete as any)?.images?.[0]?.href || (t.team as any)?.logo || (t.team as any)?.logos?.[0]?.href || ""
                               return (
-                                <div key={idx}>
-                                  <div style={{ fontWeight: 600 }}>{name}</div>
-                                  <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
-                                  <div style={{ marginTop: 4 }}>{stats}</div>
+                                <div key={idx} className="leader">
+                                  {avatar && <img className="avatar" src={avatar} alt={name || "leader"} />}
+                                  <div>
+                                    <div style={{ fontWeight: 600 }}>{name}</div>
+                                    <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
+                                    <div style={{ marginTop: 4 }}>{stats}</div>
+                                  </div>
                                 </div>
                               )
                             })}
                           </div>
                         </div>
-                      </div>
-                      <div className="vdivider" />
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
-                        {(() => {
-                          const id = (ev as any)?.id || ""
-                          const found = (ev.links || [])
-                            .map(l => ({ text: l.shortText || l.text || "", href: l.href || "#", rel: (l.rel || []).join(",") }))
-                            .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
-                          const byText = (t: string) => found.find(x => new RegExp(t, "i").test(x.text))
-                          const gamecast = byText("Gamecast")?.href || (id ? `https://www.espn.com/nba/game?gameId=${id}` : "#")
-                          const boxscore = byText("Box Score")?.href || (id ? `https://www.espn.com/nba/boxscore/_/gameId/${id}` : "#")
-                          const highlights = byText("Highlights")?.href || (id ? `https://www.espn.com/nba/recap/_/gameId/${id}` : "#")
-                          return (
-                            <>
-                              <a className="btnpill" href={gamecast} target="_blank" rel="noreferrer">Gamecast</a>
-                              <a className="btnpill" href={boxscore} target="_blank" rel="noreferrer">Box Score</a>
-                              <a className="btnpill" href={highlights} target="_blank" rel="noreferrer">Highlights</a>
-                            </>
-                          )
-                        })()}
-                      </div>
+                        <div className="hdivider" />
+                        <div className="btnstack" style={{ marginTop: 8 }}>
+                          {(() => {
+                            const id = (ev as any)?.id || ""
+                            const found = (ev.links || [])
+                              .map(l => ({ text: l.shortText || l.text || "", href: l.href || "#", rel: (l.rel || []).join(",") }))
+                              .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
+                            const byText = (t: string) => found.find(x => new RegExp(t, "i").test(x.text))
+                            const gamecast = byText("Gamecast")?.href || (id ? `https://www.espn.com/nba/game?gameId=${id}` : "#")
+                            const boxscore = byText("Box Score")?.href || (id ? `https://www.espn.com/nba/boxscore/_/gameId/${id}` : "#")
+                            const highlights = byText("Highlights")?.href || (id ? `https://www.espn.com/nba/recap/_/gameId/${id}` : "#")
+                            return (
+                              <>
+                                <a className="btnpill" href={gamecast} target="_blank" rel="noreferrer">Gamecast</a>
+                                <a className="btnpill" href={boxscore} target="_blank" rel="noreferrer">Box Score</a>
+                                <a className="btnpill" href={highlights} target="_blank" rel="noreferrer">Highlights</a>
+                              </>
+                            )
+                          })()}
+                        </div>
                     </div>
                   </div>
                 )
