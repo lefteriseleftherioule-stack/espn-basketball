@@ -5,6 +5,8 @@ type Team = {
   shortDisplayName?: string
   displayName?: string
   abbreviation?: string
+  logo?: string
+  logos?: { href?: string }[]
 }
 
 type CompetitionTeam = {
@@ -25,120 +27,213 @@ type Event = {
 }
 
 export default function Scoreboard() {
-  const [events, setEvents] = useState<Event[]>([])
+  const [groups, setGroups] = useState<{ date: string; events: Event[] }[]>([])
+  const [selectedDate, setSelectedDate] = useState<string>("")
   const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const res = await fetch("/api/scoreboard")
-        const json = await res.json()
-        const list: Event[] = json?.events || []
-        setEvents(Array.isArray(list) ? list : [])
-      } finally {
-        setLoading(false)
-      }
+
+  const toYmd = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}${m}${day}`
+  }
+  const label = (d: Date) => (
+    d.toLocaleDateString(undefined, { weekday: "short" }) +
+    " " +
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  )
+  const parseInputYmd = (v: string) => v.replace(/-/g, "")
+
+  const loadDateAndPrevious = async (ymd: string) => {
+    setLoading(true)
+    try {
+      const y = Number(ymd.slice(0, 4))
+      const m = Number(ymd.slice(4, 6)) - 1
+      const d = Number(ymd.slice(6, 8))
+      const base = new Date(y, m, d)
+      const days = [0, -1, -2, -3].map(offset => {
+        const dt = new Date(base)
+        dt.setDate(base.getDate() + offset)
+        return { ymd: toYmd(dt), dateObj: dt }
+      })
+      const results = await Promise.all(
+        days.map(async x => {
+          const res = await fetch(`/api/scoreboard?date=${x.ymd}`)
+          const json = await res.json()
+          const list: Event[] = json?.events || []
+          return { date: x.ymd, events: Array.isArray(list) ? list : [] }
+        })
+      )
+      setGroups(results)
+    } finally {
+      setLoading(false)
     }
-    run()
+  }
+
+  useEffect(() => {
+    const today = toYmd(new Date())
+    setSelectedDate(today)
+    loadDateAndPrevious(today)
   }, [])
   return (
     <div className="card">
       <div className="title">Scores</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+          {(() => {
+            if (!selectedDate) return null
+            const y = Number(selectedDate.slice(0, 4))
+            const m = Number(selectedDate.slice(4, 6)) - 1
+            const d = Number(selectedDate.slice(6, 8))
+            const base = new Date(y, m, d)
+            const range = [-3, -2, -1, 0, 1, 2, 3].map(off => {
+              const dt = new Date(base)
+              dt.setDate(base.getDate() + off)
+              return dt
+            })
+            return range.map((dt, i) => {
+              const ymd = toYmd(dt)
+              const isSel = ymd === selectedDate
+              return (
+                <button
+                  key={i}
+                  onClick={() => { setSelectedDate(ymd); loadDateAndPrevious(ymd) }}
+                  className="badge"
+                  style={{ cursor: "pointer", background: isSel ? "#374151" : "#1f2937" }}
+                >
+                  {label(dt)}
+                </button>
+              )
+            })
+          })()}
+        </div>
+        <input
+          type="date"
+          onChange={e => {
+            const val = e.currentTarget.value
+            if (val) {
+              const ymd = parseInputYmd(val)
+              setSelectedDate(ymd)
+              loadDateAndPrevious(ymd)
+            }
+          }}
+        />
+      </div>
       {loading && <div className="badge">Loading</div>}
-      {!loading && events.length === 0 && <div className="badge">No games</div>}
-      {!loading && events.length > 0 && (
+      {!loading && groups.every(g => g.events.length === 0) && <div className="badge">No games</div>}
+      {!loading && groups.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {events.map((ev, i) => {
-            const comp = ev.competitions?.[0]
-            let teams = comp?.competitors || []
-            teams = Array.isArray(teams) ? teams.slice().sort((a, b) => (a.homeAway === "away" ? -1 : 1)) : []
-            const venueName = comp?.venue?.fullName || ""
-            const city = comp?.venue?.address?.city || ""
-            const state = comp?.venue?.address?.state || ""
-            return (
-              <li key={i} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span className="badge">{ev.status?.type?.detail || ev.status?.type?.name || ""}</span>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left", fontWeight: 600 }}></th>
-                        <th style={{ textAlign: "right", fontWeight: 600 }}>1</th>
-                        <th style={{ textAlign: "right", fontWeight: 600 }}>2</th>
-                        <th style={{ textAlign: "right", fontWeight: 600 }}>3</th>
-                        <th style={{ textAlign: "right", fontWeight: 600 }}>4</th>
-                        <th style={{ textAlign: "right", fontWeight: 600 }}>T</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {teams.map((t, idx) => {
-                        const name = t.team?.displayName || t.team?.shortDisplayName || t.team?.abbreviation || ""
-                        const overall = (t.records || []).find(r => (r.type || "").toLowerCase().includes("overall") || (r.type || "").toLowerCase().includes("total"))?.summary || (t.records || [])[0]?.summary || ""
-                        const ha = t.homeAway ? (t.homeAway.charAt(0).toUpperCase() + t.homeAway.slice(1)) : ""
-                        const line = (t.linescores || []).map(ls => ls.displayValue || "")
-                        const q = [line[0] || "", line[1] || "", line[2] || "", line[3] || ""]
-                        return (
-                          <tr key={idx}>
-                            <td>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span className={t.winner ? "win" : "loss"}>{name}</span>
-                                <span className="badge">{overall ? `(${overall} ${ha})` : ha ? `(${ha})` : ""}</span>
-                              </div>
-                            </td>
-                            <td style={{ textAlign: "right" }}>{q[0]}</td>
-                            <td style={{ textAlign: "right" }}>{q[1]}</td>
-                            <td style={{ textAlign: "right" }}>{q[2]}</td>
-                            <td style={{ textAlign: "right" }}>{q[3]}</td>
-                            <td style={{ textAlign: "right" }} className="score">{t.score}</td>
+          {groups.map((grp, gi) => (
+            <li key={gi} style={{ marginBottom: 16 }}>
+              <div className="badge" style={{ marginBottom: 8 }}>{label(new Date(Number(grp.date.slice(0,4)), Number(grp.date.slice(4,6)) - 1, Number(grp.date.slice(6,8))))}</div>
+              {(grp.events || []).map((ev, i) => {
+                const comp = ev.competitions?.[0]
+                let teams = comp?.competitors || []
+                teams = Array.isArray(teams) ? teams.slice().sort((a, b) => (a.homeAway === "away" ? -1 : 1)) : []
+                const venueName = comp?.venue?.fullName || ""
+                const city = comp?.venue?.address?.city || ""
+                const state = comp?.venue?.address?.state || ""
+                const maxPeriods = Math.max(
+                  teams[0]?.linescores?.length || 0,
+                  teams[1]?.linescores?.length || 0
+                )
+                const cols = Array.from({ length: Math.max(4, maxPeriods) }, (_, k) => k)
+                return (
+                  <div key={i} style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span className="badge">{ev.status?.type?.detail || ev.status?.type?.name || ""}</span>
+                    </div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left", fontWeight: 600 }}></th>
+                            {cols.map((c) => (
+                              <th key={c} style={{ textAlign: "right", fontWeight: 600 }}>{c + 1}</th>
+                            ))}
+                            <th style={{ textAlign: "right", fontWeight: 600 }}>T</th>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {(venueName || city || state) && (
-                  <div style={{ marginTop: 8 }}>
-                    <div className="badge">{venueName}</div>
-                    <div className="badge" style={{ marginLeft: 8 }}>{[city, state].filter(Boolean).join(", ")}</div>
+                        </thead>
+                        <tbody>
+                          {teams.map((t, idx) => {
+                            const name = t.team?.displayName || t.team?.shortDisplayName || t.team?.abbreviation || ""
+                            const overall = (t.records || []).find(r => (r.type || "").toLowerCase().includes("overall") || (r.type || "").toLowerCase().includes("total"))?.summary || (t.records || [])[0]?.summary || ""
+                            const ha = t.homeAway ? (t.homeAway.charAt(0).toUpperCase() + t.homeAway.slice(1)) : ""
+                            const line = (t.linescores || []).map(ls => ls.displayValue || "")
+                            const q = cols.map(i => line[i] || "")
+                            const logo = (t.team as any)?.logo || (t.team as any)?.logos?.[0]?.href || ""
+                            return (
+                              <tr key={idx}>
+                              <td>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  {logo && <img src={logo} alt={t.team?.abbreviation || name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", background: "#fff" }} />}
+                                  <span className={t.winner ? "win" : "loss"}>{name}</span>
+                                  <span className="badge">{overall ? `(${overall} ${ha})` : ha ? `(${ha})` : ""}</span>
+                                </div>
+                              </td>
+                              {q.map((val, qi) => (
+                                <td key={qi} style={{ textAlign: "right" }}>{val}</td>
+                              ))}
+                              <td style={{ textAlign: "right" }} className="score">{t.score}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {(venueName || city || state) && (
+                      <div style={{ marginTop: 8 }}>
+                        <div className="badge">{venueName}</div>
+                        <div className="badge" style={{ marginLeft: 8 }}>{[city, state].filter(Boolean).join(", ")}</div>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8 }}>
+                      <div className="title" style={{ fontSize: 16 }}>Top Performers</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        {teams.map((t, idx) => {
+                          const leaders = t.leaders || []
+                          const pick = (preds: RegExp[]) => leaders.find(l => preds.some(rx => rx.test(l.shortDisplayName || "")))?.leaders?.[0]
+                          const lp = pick([/PTS/i, /Points/i])
+                          const lr = pick([/REB/i, /Rebounds/i])
+                          const la = pick([/AST/i, /Assists/i])
+                          const athlete = lp?.athlete || lr?.athlete || la?.athlete || {}
+                          const name = athlete.shortName || athlete.displayName || ""
+                          const jersey = athlete.jersey ? `#${athlete.jersey}` : ""
+                          const abbr = t.team?.abbreviation ? ` - ${t.team?.abbreviation}` : ""
+                          const stats = [lp?.value ? `${lp.value}PTS` : null, lr?.value ? `${lr.value}REB` : null, la?.value ? `${la.value}AST` : null].filter(Boolean).join("")
+                          return (
+                            <div key={idx}>
+                              <div style={{ fontWeight: 600 }}>{name}</div>
+                              <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
+                              <div style={{ marginTop: 4 }}>{stats}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      {(() => {
+                        const need = ["Gamecast", "Box Score", "Highlights"]
+                        const found = (ev.links || [])
+                          .map(l => ({
+                            text: l.shortText || l.text || "",
+                            href: l.href || "#",
+                            rel: (l.rel || []).join(",")
+                          }))
+                          .filter(x => /boxscore|highlights|gamecast/i.test(x.rel) || /box score|highlights|gamecast/i.test(x.text))
+                        const pick = (name: string) => found.find(x => new RegExp(name, "i").test(x.text))
+                        return need.map((n, idx) => {
+                          const x = pick(n)
+                          if (!x) return null
+                          return <a key={idx} className="link" href={x.href} target="_blank" rel="noreferrer">{n}</a>
+                        })
+                      })()}
+                    </div>
                   </div>
-                )}
-                <div style={{ marginTop: 8 }}>
-                  <div className="title" style={{ fontSize: 16 }}>Top Performers</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {teams.map((t, idx) => {
-                      const leaders = t.leaders || []
-                      const pick = (preds: RegExp[]) => leaders.find(l => preds.some(rx => rx.test(l.shortDisplayName || "")))?.leaders?.[0]
-                      const lp = pick([/PTS/i, /Points/i])
-                      const lr = pick([/REB/i, /Rebounds/i])
-                      const la = pick([/AST/i, /Assists/i])
-                      const athlete = lp?.athlete || lr?.athlete || la?.athlete || {}
-                      const name = athlete.shortName || athlete.displayName || ""
-                      const jersey = athlete.jersey ? `#${athlete.jersey}` : ""
-                      const abbr = t.team?.abbreviation ? ` - ${t.team?.abbreviation}` : ""
-                      const stats = [lp?.value ? `${lp.value}PTS` : null, lr?.value ? `${lr.value}REB` : null, la?.value ? `${la.value}AST` : null].filter(Boolean).join("")
-                      return (
-                        <div key={idx}>
-                          <div style={{ fontWeight: 600 }}>{name}</div>
-                          <div className="badge">{[jersey, abbr].filter(Boolean).join(" ")}</div>
-                          <div style={{ marginTop: 4 }}>{stats}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {(ev.links || []).map((l, idx) => {
-                    const text = l.shortText || l.text || ""
-                    const rel = (l.rel || []).join(",")
-                    const show = /boxscore|highlights|gamecast/i.test(rel) || /box score|highlights|gamecast/i.test(text)
-                    if (!show) return null
-                    return <a key={idx} className="link" href={l.href || "#"} target="_blank" rel="noreferrer">{text || "Link"}</a>
-                  })}
-                </div>
-              </li>
-            )
-          })}
+                )
+              })}
+            </li>
+          ))}
         </ul>
       )}
     </div>
