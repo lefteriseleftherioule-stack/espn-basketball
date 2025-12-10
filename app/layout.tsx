@@ -3,7 +3,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Basketball Hub",
-  description: "NBA news, scores, standings"
+  description: "NBA news and scores"
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
