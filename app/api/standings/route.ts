@@ -50,13 +50,24 @@ export async function GET() {
         const n = String(r?.type || r?.name || "").toLowerCase()
         return /league|overall|total/.test(n)
       })
-      const wins = stats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === "wins")?.displayValue
-      const losses = stats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === "losses")?.displayValue
+      const recStats = Array.isArray(recItem?.stats) ? recItem.stats : []
+      const findStat = (key: string) => {
+        const a = stats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === key)
+        const b = recStats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === key)
+        const pick = a || b
+        const dv = (pick as any)?.displayValue ?? pick?.value
+        return dv == null ? "" : String(dv)
+      }
+      const wins = findStat("wins")
+      const losses = findStat("losses")
       const summary = recItem?.summary || (wins && losses ? `${wins}-${losses}` : "")
       return {
         team: { id: tid, name: tm?.name || "", abbreviation: tm?.abbreviation || "" },
         records: summary ? [{ summary }] : [],
-        stats
+        stats: [
+          ...(wins ? [{ name: "wins", type: "wins", displayValue: wins }] : []),
+          ...(losses ? [{ name: "losses", type: "losses", displayValue: losses }] : [])
+        ]
       }
     }).filter((x: any) => x.team?.id)
     return NextResponse.json({ entries: norm }, { headers: { "Access-Control-Allow-Origin": "*" } })
