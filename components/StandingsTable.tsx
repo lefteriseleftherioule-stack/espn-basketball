@@ -20,11 +20,13 @@ export default function StandingsTable() {
         const json = await res.json()
         const directNorm = Array.isArray(json?.entries) ? json.entries : []
         if (directNorm.length) {
-          const rows: Row[] = directNorm.map((e: any) => ({
-            team: e?.team,
-            records: e?.records,
-            stats: e?.stats
-          })).filter(r => r.team?.name)
+          const rows: Row[] = directNorm
+            .map((e: any): Row => ({
+              team: e?.team,
+              records: e?.records,
+              stats: e?.stats
+            }))
+            .filter((r: Row) => !!r.team?.name)
           setRows(rows.slice(0, 30))
           return
         }
@@ -47,7 +49,7 @@ export default function StandingsTable() {
             records,
             stats
           }
-        }).filter(r => r.team?.name)
+        }).filter((r: Row) => !!r.team?.name)
         setRows(teams.slice(0, 30))
       } finally {
         setLoading(false)
