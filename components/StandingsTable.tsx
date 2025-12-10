@@ -18,20 +18,36 @@ export default function StandingsTable() {
       try {
         const res = await fetch("/api/standings")
         const json = await res.json()
-        const children = json?.children || json?.standings?.children || []
-        const leaf = Array.isArray(children) ? children.flatMap((c: any) => c.children || []) : []
-        const tables = leaf.length ? leaf : children
-        const teams: Row[] = []
-        tables.forEach((t: any) => {
-          const entries = t?.standings?.entries || t?.entries || []
-          entries.forEach((e: any) => {
-            teams.push({
-              team: { name: e?.team?.name, abbreviation: e?.team?.abbreviation, id: e?.team?.id },
-              records: e?.stats ? [{ summary: e?.stats?.find((s: any) => s?.name === "record")?.displayValue }] : e?.records,
-              stats: e?.stats
-            })
-          })
-        })
+        const directNorm = Array.isArray(json?.entries) ? json.entries : []
+        if (directNorm.length) {
+          const rows: Row[] = directNorm.map((e: any) => ({
+            team: e?.team,
+            records: e?.records,
+            stats: e?.stats
+          })).filter(r => r.team?.name)
+          setRows(rows.slice(0, 30))
+          return
+        }
+        const collectEntries = (node: any): any[] => {
+          if (!node || typeof node !== "object") return []
+          const direct = Array.isArray(node?.entries) ? node.entries : Array.isArray(node?.standings?.entries) ? node.standings.entries : []
+          const fromArray = Array.isArray(node?.standings) ? node.standings : []
+          const kids = Array.isArray(node?.children) ? node.children : Array.isArray(node?.standings?.children) ? node.standings.children : []
+          const sub = Array.isArray(kids) ? kids.flatMap(collectEntries) : []
+          return [...direct, ...fromArray, ...sub]
+        }
+        const entries = collectEntries(json)
+        const teams: Row[] = entries.map((e: any) => {
+          const t = e?.team || {}
+          const stats = Array.isArray(e?.stats) ? e.stats : []
+          const rec = stats.find((s: any) => (s?.name || "").toLowerCase() === "record")
+          const records = Array.isArray(e?.records) ? e.records : (rec ? [{ summary: rec.displayValue || String(rec.value || "") }] : [])
+          return {
+            team: { name: t?.displayName || t?.name || t?.abbreviation, abbreviation: t?.abbreviation, id: String(t?.id || "") },
+            records,
+            stats
+          }
+        }).filter(r => r.team?.name)
         setRows(teams.slice(0, 30))
       } finally {
         setLoading(false)
