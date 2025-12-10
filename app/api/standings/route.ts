@@ -14,9 +14,20 @@ export async function GET() {
     const r2 = await fetch(ref.includes("?") ? `${ref}&limit=200` : `${ref}?limit=200`, { next: { revalidate } })
     if (!r2.ok) return NextResponse.json({ error: "upstream" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
     const j2 = await r2.json()
+    const items = Array.isArray((j2 as any)?.items) ? (j2 as any).items : []
     const standings = Array.isArray((j2 as any)?.standings) ? (j2 as any).standings : []
-    const flatten = (arr: any[]): any[] => arr.flatMap((s: any) => (Array.isArray(s?.entries) ? s.entries : []))
-    const entries = flatten(standings)
+    const refs = [
+      ...items.map((it: any) => String(it?.$ref || "")).filter(Boolean),
+      ...standings.map((st: any) => String(st?.$ref || "")).filter(Boolean)
+    ]
+    const pickRef = refs.find(r => /standings\/0\b/.test(r)) || refs[0] || ""
+    if (!pickRef) return NextResponse.json({ entries: [] }, { headers: { "Access-Control-Allow-Origin": "*" } })
+    const r3 = await fetch(pickRef.includes("?") ? `${pickRef}&limit=200` : `${pickRef}?limit=200`, { next: { revalidate } })
+    if (!r3.ok) return NextResponse.json({ error: "upstream" }, { status: 502, headers: { "Access-Control-Allow-Origin": "*" } })
+    const j3 = await r3.json()
+    const entries = Array.isArray((j3 as any)?.standings)
+      ? (j3 as any).standings
+      : (Array.isArray((j3 as any)?.entries) ? (j3 as any).entries : (Array.isArray((j3 as any)?.entries?.items) ? (j3 as any).entries.items : []))
     const teamsRes = await fetch("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams", { next: { revalidate } })
     const teamsJson = await teamsRes.json().catch(() => ({} as any))
     const rawTeams = Array.isArray((teamsJson as any)?.sports?.[0]?.leagues?.[0]?.teams)
