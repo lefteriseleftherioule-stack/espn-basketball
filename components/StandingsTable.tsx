@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 type Team = { name?: string, abbreviation?: string, id?: string }
 type RecordItem = { summary?: string, wins?: number, losses?: number }
 
+type Stat = { name?: string, type?: string, value?: number | string, displayValue?: string | number }
 type Row = {
   team?: Team
   records?: RecordItem[]
-  stats?: { name?: string, value?: number | string }[]
+  stats?: Stat[]
 }
 
 export default function StandingsTable() {
@@ -132,8 +133,9 @@ export default function StandingsTable() {
           <tbody>
             {rows.map((r, i) => {
               const getStat = (key: string) => {
-                const s = (r.stats || []).find((x: any) => String(x?.name || x?.type || "").toLowerCase() === key)
-                return (s?.displayValue ?? s?.value ?? "") as any
+                const s = (r.stats || []).find((x) => String(x?.name || x?.type || "").toLowerCase() === key)
+                const v = (s as any)?.displayValue ?? s?.value
+                return v == null ? "" : String(v)
               }
               const record = r.records?.[0]?.summary || (() => {
                 const w = String(getStat("wins") || "")
