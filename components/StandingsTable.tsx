@@ -133,8 +133,10 @@ export default function StandingsTable() {
           <tbody>
             {rows.map((r, i) => {
               const getStat = (key: string) => {
-                const s = (r.stats || []).find((x) => String(x?.name || x?.type || "").toLowerCase() === key)
-                const v = (s as any)?.displayValue ?? s?.value
+                const fromStats = (r.stats || []).find((x) => String(x?.name || x?.type || "").toLowerCase() === key)
+                const fromRecordStats = (Array.isArray(r.records?.[0]?.stats) ? r.records![0].stats! : []).find((x: any) => String(x?.name || x?.type || "").toLowerCase() === key)
+                const pick = fromStats || fromRecordStats
+                const v = (pick as any)?.displayValue ?? (pick as any)?.value
                 return v == null ? "" : String(v)
               }
               const record = r.records?.[0]?.summary || (() => {
