@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 
 type Team = { name?: string, abbreviation?: string, id?: string }
-type RecordItem = { summary?: string, wins?: number, losses?: number }
+type RecordItem = { summary?: string, wins?: number, losses?: number, stats?: Stat[] }
 
 type Stat = { name?: string, type?: string, value?: number | string, displayValue?: string | number }
 type Row = {
