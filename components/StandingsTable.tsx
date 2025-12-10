@@ -82,28 +82,6 @@ export default function StandingsTable() {
           }
         }).filter((r: Row) => !!r.team?.name)
         setRows(rowsFallback.slice(0, 30))
-        return
-        const collectEntries = (node: any): any[] => {
-          if (!node || typeof node !== "object") return []
-          const direct = Array.isArray(node?.entries) ? node.entries : Array.isArray(node?.standings?.entries) ? node.standings.entries : []
-          const fromArray = Array.isArray(node?.standings) ? node.standings : []
-          const kids = Array.isArray(node?.children) ? node.children : Array.isArray(node?.standings?.children) ? node.standings.children : []
-          const sub = Array.isArray(kids) ? kids.flatMap(collectEntries) : []
-          return [...direct, ...fromArray, ...sub]
-        }
-        const legacyEntries = collectEntries(json)
-        const teams: Row[] = legacyEntries.map((e: any) => {
-          const t = e?.team || {}
-          const stats = Array.isArray(e?.stats) ? e.stats : []
-          const rec = stats.find((s: any) => (s?.name || "").toLowerCase() === "record")
-          const records = Array.isArray(e?.records) ? e.records : (rec ? [{ summary: rec.displayValue || String(rec.value || "") }] : [])
-          return {
-            team: { name: t?.displayName || t?.name || t?.abbreviation, abbreviation: t?.abbreviation, id: String(t?.id || "") },
-            records,
-            stats
-          }
-        }).filter((r: Row) => !!r.team?.name)
-        setRows(teams.slice(0, 30))
       } finally {
         setLoading(false)
       }
