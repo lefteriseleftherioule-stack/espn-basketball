@@ -74,9 +74,13 @@ export default function StandingsTable() {
           const tid = String(e?.team?.id || e?.teamId || (tref.match(/teams\/(\d+)/)?.[1] || ""))
           const tm = tid ? teamMap.get(tid) : undefined
           const stats = Array.isArray(e?.stats) ? e.stats : []
+          const recItem = (Array.isArray(e?.records) ? e.records : []).find((r: any) => {
+            const n = String(r?.type || r?.name || "").toLowerCase()
+            return /leaguestandings|league|overall|total/.test(n)
+          })
           const wins = stats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === "wins")?.displayValue
           const losses = stats.find((s: any) => String(s?.type || s?.name || "").toLowerCase() === "losses")?.displayValue
-          const summary = wins && losses ? `${wins}-${losses}` : ""
+          const summary = recItem?.summary || (wins && losses ? `${wins}-${losses}` : "")
           return {
             team: { name: tm?.name, abbreviation: tm?.abbreviation, id: tid },
             records: summary ? [{ summary }] : [],
@@ -127,7 +131,15 @@ export default function StandingsTable() {
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const record = r.records?.[0]?.summary || r.stats?.find(s => s.name === "record")?.value || ""
+              const getStat = (key: string) => {
+                const s = (r.stats || []).find((x: any) => String(x?.name || x?.type || "").toLowerCase() === key)
+                return (s?.displayValue ?? s?.value ?? "") as any
+              }
+              const record = r.records?.[0]?.summary || (() => {
+                const w = String(getStat("wins") || "")
+                const l = String(getStat("losses") || "")
+                return (w && l) ? `${w}-${l}` : ""
+              })()
               return (
                 <tr key={i}>
                   <td>{r.team?.name || r.team?.abbreviation}</td>
