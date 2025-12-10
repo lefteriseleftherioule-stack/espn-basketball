@@ -77,7 +77,7 @@ export default function StandingsTable() {
           const summary = recItem?.summary || (wins && losses ? `${wins}-${losses}` : "")
           return {
             team: { name: tm?.name, abbreviation: tm?.abbreviation, id: tid, logo: tm?.logo },
-            records: summary ? [{ summary }] : [],
+            records: Array.isArray(e?.records) ? e.records : (summary ? [{ summary }] : []),
             stats: [...stats, ...((Array.isArray(recItem?.stats) ? recItem!.stats! : []) as any[])]
           }
         }).filter((r: Row) => !!r.team?.name)
@@ -147,7 +147,7 @@ export default function StandingsTable() {
           const summary = recItem?.summary || (wins && losses ? `${wins}-${losses}` : "")
           return {
             team: { name: tm?.name, abbreviation: tm?.abbreviation, id: tid, logo: tm?.logo },
-            records: summary ? [{ summary }] : [],
+            records: Array.isArray(e?.records) ? e.records : (summary ? [{ summary }] : []),
             stats: [...stats, ...((Array.isArray(recItem?.stats) ? recItem!.stats! : []) as any[])]
           }
         }).filter((r: Row) => !!r.team?.name)
@@ -161,11 +161,11 @@ export default function StandingsTable() {
     <div className="card">
       <div className="title">Standings</div>
       <div className="btnstack" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" as any }}>
-        <button type="button" className="btnpill" onClick={() => setMode("league")}>League</button>
-        <button type="button" className="btnpill" onClick={() => setMode("conference")}>Conference</button>
-        <button type="button" className="btnpill" onClick={() => setMode("division")}>Division</button>
-        <button type="button" className="btnpill" onClick={() => setSeasonType("regular")}>Regular Season</button>
-        <button type="button" className="btnpill" onClick={() => setSeasonType("preseason")}>Preseason</button>
+        <button type="button" className="btnpill" style={mode === "league" ? { background: "#3f4958", color: "#ffffff" } : undefined} onClick={() => setMode("league")}>League</button>
+        <button type="button" className="btnpill" style={mode === "conference" ? { background: "#3f4958", color: "#ffffff" } : undefined} onClick={() => setMode("conference")}>Conference</button>
+        <button type="button" className="btnpill" style={mode === "division" ? { background: "#3f4958", color: "#ffffff" } : undefined} onClick={() => setMode("division")}>Division</button>
+        <button type="button" className="btnpill" style={seasonType === "regular" ? { background: "#3f4958", color: "#ffffff" } : undefined} onClick={() => setSeasonType("regular")}>Regular Season</button>
+        <button type="button" className="btnpill" style={seasonType === "preseason" ? { background: "#3f4958", color: "#ffffff" } : undefined} onClick={() => setSeasonType("preseason")}>Preseason</button>
         <span className="badge">{seasonYear}-{String(seasonYear + 1).slice(2)}</span>
       </div>
       {loading && <div className="badge">Loading</div>}
@@ -178,59 +178,107 @@ export default function StandingsTable() {
               <th style={{ textAlign: "right", fontWeight: 600 }}>W</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>L</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>PCT</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>GB</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>HOME</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>AWAY</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>DIV</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>CONF</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>PPG</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>OPP PPG</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>DIFF</th>
               <th style={{ textAlign: "right", fontWeight: 600 }}>STRK</th>
+              <th style={{ textAlign: "right", fontWeight: 600 }}>L10</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => {
-              const getStat = (key: string) => {
-                const fromStats = (r.stats || []).find((x) => String(x?.name || x?.type || "").toLowerCase() === key)
+            {(() => {
+              const getW = (row: Row) => {
+                const s = (row.stats || []).find(x => String(x?.name || x?.type || "").toLowerCase() === "wins")
+                const v = (s as any)?.displayValue ?? (s as any)?.value
+                return Number(v || 0)
+              }
+              const getL = (row: Row) => {
+                const s = (row.stats || []).find(x => String(x?.name || x?.type || "").toLowerCase() === "losses")
+                const v = (s as any)?.displayValue ?? (s as any)?.value
+                return Number(v || 0)
+              }
+              const best = rows.reduce((acc, row) => {
+                const w = getW(row); const l = getL(row)
+                const p = (w + l) > 0 ? (w / (w + l)) : -1
+                if (p > acc.p) return { p, w, l }
+                return acc
+              }, { p: -1, w: 0, l: 0 })
+              const getStat = (row: Row, key: string) => {
+                const fromStats = (row.stats || []).find((x) => String(x?.name || x?.type || "").toLowerCase() === key)
                 const v = (fromStats as any)?.displayValue ?? (fromStats as any)?.value
                 return v == null ? "" : String(v)
               }
-              const getFirst = (keys: string[]) => {
+              const getFirst = (row: Row, keys: string[]) => {
                 for (const k of keys) {
-                  const v = getStat(k)
+                  const v = getStat(row, k)
                   if (v !== "") return v
                 }
                 return ""
               }
-              const w = getFirst(["wins"]) || ""
-              const l = getFirst(["losses"]) || ""
-              const pct = getFirst(["winpercent", "winpct", "winpercentage"]) || ""
-              const ppg = getFirst(["avgpointsfor", "pointsforpergame", "pointsforpg"]) || ""
-              const opp = getFirst(["avgpointsagainst", "pointsagainstpergame", "oppointspergame", "oppptsg"]) || ""
-              let diff = getFirst(["differential", "pointdifferential"]) || ""
-              const strk = getFirst(["streak"]) || ""
-              if (!diff) {
-                const pn = parseFloat(ppg)
-                const on = parseFloat(opp)
-                if (!Number.isNaN(pn) && !Number.isNaN(on)) {
-                  const d = pn - on
-                  diff = `${d > 0 ? "+" : ""}${d.toFixed(1)}`
-                }
+              const getRecord = (row: Row, keys: string[]) => {
+                const recs = Array.isArray(row.records) ? row.records : []
+                const m = recs.find(r => keys.some(k => String(r?.type || r?.name || "").toLowerCase() === k))
+                const s = m?.summary || ""
+                return String(s)
               }
-              return (
-                <tr key={i}>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {r.team?.logo && <img src={r.team.logo} alt={r.team?.abbreviation || r.team?.name || ""} style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain", background: "#fff" }} />}
-                      <span>{r.team?.name || r.team?.abbreviation}</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: "right" }}>{w}</td>
-                  <td style={{ textAlign: "right" }}>{l}</td>
-                  <td style={{ textAlign: "right" }}>{pct}</td>
-                  <td style={{ textAlign: "right" }}>{ppg}</td>
-                  <td style={{ textAlign: "right" }}>{opp}</td>
-                  <td style={{ textAlign: "right" }}>{diff}</td>
-                  <td style={{ textAlign: "right" }}>{strk}</td>
-                </tr>
-              )
-            })}
+              return rows.map((r, i) => {
+                const w = String(getFirst(r, ["wins"]) || "")
+                const l = String(getFirst(r, ["losses"]) || "")
+                const pct = String(getFirst(r, ["winpercent", "winpct", "winpercentage"]) || "")
+                const ppg = String(getFirst(r, ["avgpointsfor", "pointsforpergame", "pointsforpg"]) || "")
+                const opp = String(getFirst(r, ["avgpointsagainst", "pointsagainstpergame", "oppointspergame", "oppptsg"]) || "")
+                let diff = String(getFirst(r, ["differential", "pointdifferential"]) || "")
+                const strk = String(getFirst(r, ["streak"]) || "")
+                const gbStat = String(getFirst(r, ["gamesbehind", "gamesback", "gamesbehindleader", "gamesbehindleagueleader"]) || "")
+                let gb = gbStat
+                if (!gb) {
+                  const wn = Number(w), ln = Number(l)
+                  const gbRaw = ((best.w - wn) + (ln - best.l)) / 2
+                  gb = Number.isFinite(gbRaw) ? (gbRaw === 0 ? "-" : gbRaw.toFixed(1)) : ""
+                }
+                if (!diff) {
+                  const pn = parseFloat(ppg)
+                  const on = parseFloat(opp)
+                  if (!Number.isNaN(pn) && !Number.isNaN(on)) {
+                    const d = pn - on
+                    diff = `${d > 0 ? "+" : ""}${d.toFixed(1)}`
+                  }
+                }
+                const home = getRecord(r, ["home"]) || ""
+                const away = getRecord(r, ["road", "away"]) || ""
+                const div = getRecord(r, ["division"]) || ""
+                const conf = getRecord(r, ["conference"]) || ""
+                const l10 = getRecord(r, ["lastten", "last10", "l10"]) || ""
+                return (
+                  <tr key={i}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {r.team?.logo && <img src={r.team.logo} alt={r.team?.abbreviation || r.team?.name || ""} style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain", background: "#fff" }} />}
+                        <span>{r.team?.name || r.team?.abbreviation}</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: "right" }}>{w}</td>
+                    <td style={{ textAlign: "right" }}>{l}</td>
+                    <td style={{ textAlign: "right" }}>{pct}</td>
+                    <td style={{ textAlign: "right" }}>{gb}</td>
+                    <td style={{ textAlign: "right" }}>{home}</td>
+                    <td style={{ textAlign: "right" }}>{away}</td>
+                    <td style={{ textAlign: "right" }}>{div}</td>
+                    <td style={{ textAlign: "right" }}>{conf}</td>
+                    <td style={{ textAlign: "right" }}>{ppg}</td>
+                    <td style={{ textAlign: "right" }}>{opp}</td>
+                    <td style={{ textAlign: "right" }}>{diff}</td>
+                    <td style={{ textAlign: "right" }}>{strk}</td>
+                    <td style={{ textAlign: "right" }}>{l10}</td>
+                  </tr>
+                )
+              })
+            })()}
           </tbody>
         </table>
       )}
