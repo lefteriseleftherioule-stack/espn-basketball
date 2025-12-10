@@ -53,7 +53,7 @@ export default function StandingsTable() {
         }
         const r3 = await fetch(pickRef.includes("?") ? `${pickRef}&limit=200` : `${pickRef}?limit=200`)
         const j3 = await r3.json().catch(() => ({} as any))
-        const entries = Array.isArray(j3?.standings)
+        const tableEntries = Array.isArray(j3?.standings)
           ? j3.standings
           : (Array.isArray(j3?.entries) ? j3.entries : (Array.isArray(j3?.entries?.items) ? j3.entries.items : []))
         const teamsRes = await fetch("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams")
@@ -69,7 +69,7 @@ export default function StandingsTable() {
           const abbr = t?.abbreviation || ""
           if (id) teamMap.set(id, { name, abbreviation: abbr })
         })
-        const rowsFallback: Row[] = entries.map((e: any) => {
+        const rowsFallback: Row[] = tableEntries.map((e: any) => {
           const tref = String(e?.team?.$ref || "")
           const tid = String(e?.team?.id || e?.teamId || (tref.match(/teams\/(\d+)/)?.[1] || ""))
           const tm = tid ? teamMap.get(tid) : undefined
@@ -93,8 +93,8 @@ export default function StandingsTable() {
           const sub = Array.isArray(kids) ? kids.flatMap(collectEntries) : []
           return [...direct, ...fromArray, ...sub]
         }
-        const entries = collectEntries(json)
-        const teams: Row[] = entries.map((e: any) => {
+        const legacyEntries = collectEntries(json)
+        const teams: Row[] = legacyEntries.map((e: any) => {
           const t = e?.team || {}
           const stats = Array.isArray(e?.stats) ? e.stats : []
           const rec = stats.find((s: any) => (s?.name || "").toLowerCase() === "record")
